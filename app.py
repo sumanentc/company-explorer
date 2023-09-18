@@ -1,7 +1,7 @@
 import streamlit as st
 
-from custom_tool import get_company_information, get_company_income, get_final_answer
-from llm_agent import get_company_name, get_ticker, is_income_statement_query, get_data_as_string, get_summary_prompt, \
+from custom_agent import get_company_information, get_company_income, get_final_answer
+from llm_agent import get_company_name, get_ticker, is_income_statement_query, get_data_as_string, \
     run, extract_income_statement_data, is_balance_sheet_query, \
     get_income_statement_data, get_balance_sheet_data, extract_balance_sheet_data, is_cash_flow_query, \
     extract_cash_flow_data, get_cash_flow_data, get_earnings_data, extract_earnings_data
@@ -11,6 +11,7 @@ from llm_agent import get_company_name, get_ticker, is_income_statement_query, g
 #     "[Get an OpenAI API key](https://platform.openai.com/account/api-keys)"
 #     "[View the source code](https://github.com/streamlit/llm-examples/blob/main/Chatbot.py)"
 #     "[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/streamlit/llm-examples?quickstart=1)"
+from prompt_helper import get_summary_prompt
 
 st.title("👲Company Explorer")
 st.write("Company Explorer, is a versatile tool for in-depth research on publicly traded companies."
@@ -67,7 +68,8 @@ with st.form("my_form"):
             if 'company_name' in st.session_state:
                 company_name = st.session_state.company_name
             else:
-                st.error("I'm sorry, I didn't quite understand your input")
+                st.error("I'm sorry, I didn't quite understand your input."
+                         " I can only help you with Company related queries.")
                 st.stop()
 
 if 'tickers' in st.session_state:
@@ -143,7 +145,7 @@ if 'tickers' in st.session_state and ticker:
                         )
                     }, use_container_width=True)
 
-                st.markdown(''' ###### :blue[Summary]
+                st.markdown(''' ###### :blue[Answer]
 
                         ''')
                 status.update(label="""###### Generating Summary...""", expanded=True)
@@ -158,7 +160,6 @@ if 'tickers' in st.session_state and ticker:
                 company_income = get_company_income(f'Provide a summary like an expert business analyst for '
                                                     f'{st.session_state.company_name}. {query}',
                                                     openai_api_key)
-                #print(company_income)
                 st.write(f'{company_income}')
 
             status.update(label="""###### Income Statement""", state="complete", expanded=True)
@@ -195,7 +196,7 @@ if 'tickers' in st.session_state and ticker:
                     )
                 }, use_container_width=True)
 
-                st.markdown(''' ###### :blue[Summary]
+                st.markdown(''' ###### :blue[Answer]
 
                         ''')
                 status.update(label="""###### Generating Summary...""", expanded=True)
@@ -241,7 +242,7 @@ if 'tickers' in st.session_state and ticker:
                     )
                 }, use_container_width=True)
 
-                st.markdown(''' ###### :blue[Summary]
+                st.markdown(''' ###### :blue[Answer]
 
                         ''')
                 status.update(label="""###### Generating Summary...""", expanded=True)

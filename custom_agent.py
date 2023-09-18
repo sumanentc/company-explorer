@@ -13,6 +13,7 @@ from langchain.tools import BaseTool, DuckDuckGoSearchRun, Tool
 
 # langchain.debug = True
 from llm_agent import get_income_statement, get_balance_sheet, get_cash_flow, get_earnings
+from prompt_helper import get_generic_answer_prompt
 
 
 def search_general(input_text):
@@ -39,7 +40,6 @@ def get_annual_income_statement(input_text):
     data = get_income_statement()
     annual_documents = []
     if data:
-        # open_api_key = st.session_state.openai_api_key
         for annual_rep in data.get('annualReports'):
             annual_documents.extend(
                 f'{key} : {value}'
@@ -60,7 +60,6 @@ def get_quarterly_income_statement(input_text):
     quarterly_documents = []
     currentYear = datetime.now().year
     if data:
-        # open_api_key = st.session_state.openai_api_key
         for quater_rep in data.get('quarterlyReports'):
             if str(currentYear) in quater_rep.get('fiscalDateEnding') or str(currentYear - 1) in quater_rep.get(
                     'fiscalDateEnding'):
@@ -82,7 +81,6 @@ def get_annual_balance_sheet(input_text):
     data = get_balance_sheet()
     annual_documents = []
     if data:
-        # open_api_key = st.session_state.openai_api_key
         for annual_rep in data.get('annualReports'):
             annual_documents.extend(
                 f'{key} : {value}'
@@ -103,7 +101,6 @@ def get_quarterly_balance_sheet(input_text):
     quarterly_documents = []
     currentYear = datetime.now().year
     if data:
-        # open_api_key = st.session_state.openai_api_key
         for quater_rep in data.get('quarterlyReports'):
             if str(currentYear) in quater_rep.get('fiscalDateEnding') or str(currentYear - 1) in quater_rep.get(
                     'fiscalDateEnding'):
@@ -461,20 +458,6 @@ def get_llm_response(input: str, open_api_key: str):
     return agent_response
 
 
-def get_final_prompt(user_query):
-    return f"""
-                - You are an expert business analyst.
-                - You role is to respond to Business user questions based on the context.
-                - Respond to questions in FAQ format.Highlight important information using markdown. Do not include the question.
-                - Your task is to extract relevant information from the UserInput below, delimited by <> and help me answer the question.
-                - Generate a paragraph-style response with bullet points in raw Markdown javascript format.
-                - Don't mention "Based on your input", in the response.
-                - Don't mention "Based on the information available", in the response.
-                
-                UserInput: <{user_query}>
-                """
-
-
 def get_final_answer(openapi_key, query):
     import streamlit as st
     matched_token = st.session_state.matched_token
@@ -484,7 +467,7 @@ def get_final_answer(openapi_key, query):
         query = re.sub(matched_token, name, query, flags=re.IGNORECASE)
     print(query)
     try:
-        return get_llm_response(get_final_prompt(query), openapi_key)
+        return get_llm_response(get_generic_answer_prompt(query), openapi_key)
     except Exception as e:
         print(f'Exception occurred {e}')
         return "Sorry, couldn't process the request now. Try again after sometime"
@@ -521,23 +504,3 @@ def get_company_income(user_query, open_api_key):
     agent = initialize_agent(
         tools, llm, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION, verbose=True, handle_parsing_errors=True)
     return agent.run(user_query)
-
-
-def get_summary(input_prompt, open_api_key):
-    llm = ChatOpenAI(temperature=0, model_name='gpt-3.5-turbo-0613', openai_api_key=open_api_key, max_retries=2,max_tokens=1000)
-    llm_math_chain = LLMMathChain.from_llm(llm=llm, verbose=False)
-    tools = [
-        Tool(
-            name="Calculator",
-            func=llm_math_chain.run,
-            description="useful for when you need to calculate something"
-        )
-    ]
-    agent = initialize_agent(
-        tools, llm, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION, verbose=True, handle_parsing_errors=True
-    )
-    try:
-        return agent.run(input_prompt)
-    except Exception as e:
-        print(f'Exception occurred {e}')
-        return "Sorry, couldn't process the request now. Try again after sometime"

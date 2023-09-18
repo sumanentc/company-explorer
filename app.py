@@ -5,19 +5,19 @@ from llm_agent import get_company_name, get_ticker, is_income_statement_query, g
     run, extract_income_statement_data, is_balance_sheet_query, \
     get_income_statement_data, get_balance_sheet_data, extract_balance_sheet_data, is_cash_flow_query, \
     extract_cash_flow_data, get_cash_flow_data, get_earnings_data, extract_earnings_data
+from prompt_helper import get_summary_prompt
 
 # with st.sidebar:
 #     openai_api_key = st.text_input("OpenAI API Key", key="chatbot_api_key", type="password")
 #     "[Get an OpenAI API key](https://platform.openai.com/account/api-keys)"
 #     "[View the source code](https://github.com/streamlit/llm-examples/blob/main/Chatbot.py)"
 #     "[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/streamlit/llm-examples?quickstart=1)"
-from prompt_helper import get_summary_prompt
+
 
 st.title("👲Company Explorer")
 st.write("Company Explorer, is a versatile tool for in-depth research on publicly traded companies."
          " Whether you're seeking information or considering an investment, it offers features like company analysis, income statement and balance sheet access, and simplification of financial terminology."
          " This app aims to improve your understanding of the company you're interested in.")
-
 
 def get_selected_ticker():
     session_tickers = st.session_state.tickers

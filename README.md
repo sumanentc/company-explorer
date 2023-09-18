@@ -16,7 +16,7 @@ Overall, the Company Explorer app aims to simplify the process of exploring the 
 
 **Video demonstration (click the picture):**
 
-[![RoamWise](./images/explorer.gif)](https://youtu.be/P30QUiCsvRI)
+[![RoamWise](./images/explorer1.png)](https://youtu.be/P30QUiCsvRI)
 
 ### Built With
 

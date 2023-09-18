@@ -81,6 +81,8 @@ http://localhost:8501
 
 ![Company-Explorer](./images/streamlit.png)
 
+Link to try the App : [Company-Explorer](https://company-explorer.streamlit.app/)
+
 ## License
 
 Distributed under the Apache License. See `LICENSE` for more information.

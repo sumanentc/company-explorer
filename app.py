@@ -4,7 +4,7 @@ from custom_agent import get_company_information, get_company_income, get_final_
 from llm_agent import get_company_name, get_ticker, is_income_statement_query, get_data_as_string, \
     run, extract_income_statement_data, is_balance_sheet_query, \
     get_income_statement_data, get_balance_sheet_data, extract_balance_sheet_data, is_cash_flow_query, \
-    extract_cash_flow_data, get_cash_flow_data, get_earnings_data, extract_earnings_data
+    extract_cash_flow_data, get_cash_flow_data, get_earnings_data, extract_earnings_data, get_news
 from prompt_helper import get_summary_prompt
 
 # with st.sidebar:
@@ -19,6 +19,7 @@ st.write("Company Explorer, is a versatile tool for in-depth research on publicl
          " Whether you're seeking information or considering an investment, it offers features like company analysis, income statement and balance sheet access, and simplification of financial terminology."
          " This app aims to improve your understanding of the company you're interested in.")
 
+
 def get_selected_ticker():
     session_tickers = st.session_state.tickers
     if session_tickers and len(session_tickers) > 1:
@@ -28,7 +29,7 @@ def get_selected_ticker():
         selected_ticker = st.radio(
             "We found multiple companies with similar ticker symbol or name. Please change below 👇 options to use a different company.",
             options=values, format_func=lambda x: session_tickers[x] if x != '' else '',
-            key="company_selected", )
+            key="company_selected", captions=values)
         return selected_ticker, session_tickers[selected_ticker]
     else:
         return list(session_tickers.items())[0]
@@ -36,7 +37,7 @@ def get_selected_ticker():
 
 company_name = None
 with st.form("my_form"):
-    query = st.text_input("Enter your Query:", "Analyse the performance of Tesla")
+    query = st.text_input("Enter your Query:", "Analyse the performance of Tesla this year")
     submitted = st.form_submit_button("Submit")
     openai_api_key = api_key = st.secrets["openai_api_key"]
     if not openai_api_key:
@@ -98,7 +99,7 @@ if 'tickers' in st.session_state and ticker:
     income_statement_query = is_income_statement_query(query, openai_api_key)
     print(income_statement_query)
     if income_statement_query and income_statement_query.get('income_statement_useful'):
-        with st.status("""###### Getting Income Statement...""", expanded=True) as status:
+        with st.status("""###### Analyzing Income Statement...""", expanded=True) as status:
             if data := get_income_statement_data(
                     selected_ticker, income_statement_query.get('year')):
 
@@ -155,7 +156,7 @@ if 'tickers' in st.session_state and ticker:
                                                    f"Annual Income Data = {annual_text_data} \n "
                                                    f"Quarterly Income Data = {quarterly_data_string}")
                 resp1 = run(income_prompt, openai_api_key, False)
-                st.write(f'''```{resp1}\n```''')
+                st.markdown(f'''```{resp1}\n```''')
             else:
                 company_income = get_company_income(f'Provide a summary like an expert business analyst for '
                                                     f'{st.session_state.company_name}. {query}',
@@ -168,7 +169,7 @@ if 'tickers' in st.session_state and ticker:
     balance_sheet_query = is_balance_sheet_query(query, openai_api_key)
     print(balance_sheet_query)
     if balance_sheet_query and balance_sheet_query.get('balance_sheet_useful'):
-        with st.status("""###### Getting Balance Sheet...""", expanded=True) as status:
+        with st.status("""###### Analyzing Balance Sheet...""", expanded=True) as status:
             if data := get_balance_sheet_data(
                     selected_ticker, balance_sheet_query.get('year')):
 
@@ -215,7 +216,7 @@ if 'tickers' in st.session_state and ticker:
     cash_flow_query = is_cash_flow_query(query, openai_api_key)
     print(cash_flow_query)
     if cash_flow_query and cash_flow_query.get('cash_flow_useful'):
-        with st.status("""###### Getting Cash Flow...""", expanded=True) as status:
+        with st.status("""###### Analyzing Cash Flow...""", expanded=True) as status:
             if data := get_cash_flow_data(
                     selected_ticker, cash_flow_query.get('year')):
 
@@ -262,7 +263,25 @@ if 'tickers' in st.session_state and ticker:
     if not income_statement_query and not income_statement_query.get('income_statement_useful') \
             and not balance_sheet_query and not balance_sheet_query.get('balance_sheet_useful') \
             and not cash_flow_query and not cash_flow_query.get('cash_flow_useful'):
-        with st.status("""###### Gathering Data...""", expanded=True) as status:
+        with st.status("""###### Analyzing Data...""", expanded=True) as status:
             final_resp = get_final_answer(openai_api_key, query)
             st.markdown(final_resp, unsafe_allow_html=True)
             status.update(label="""###### Response""", state="complete", expanded=True)
+
+    api_key = st.secrets["alpha_vantage_api_key"]
+    news = get_news(selected_ticker, api_key)
+    if news and news.get('feed'):
+        selected_news = []
+        for curr_news in news.get('feed'):
+            selected_comp_news = None
+            for tick in curr_news.get('ticker_sentiment'):
+                if tick.get('ticker') == selected_ticker:
+                    selected_comp_news = True
+            if selected_comp_news:
+                selected_news.append(f"[{curr_news.get('title')}]({curr_news.get('url')})")
+        if selected_news:
+            st.markdown(''' ###### :orange[News]
+            
+                        ''')
+            for curr_news in selected_news[:6]:
+                st.markdown(f'{curr_news}\n', unsafe_allow_html=True)

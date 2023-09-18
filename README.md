@@ -16,7 +16,7 @@ Overall, the Company Explorer app aims to simplify the process of exploring the 
 
 **Video demonstration (click the picture):**
 
-[![Company-Explorer](./images/explorer1.png)](https://youtu.be/P30QUiCsvRI)
+[![Company-Explorer](./images/explorer1.png)](https://youtu.be/tjBQVS2aIBY)
 
 ### Built With
 

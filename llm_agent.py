@@ -76,13 +76,13 @@ def get_ticker(company_name, api_key):
 
 
 def get_news(ticker, api_key):
-    url = f'https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers={ticker}&apikey={api_key}&limit=10'
+    url = f'https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers={ticker}&apikey={api_key}&limit=10&sort=RELEVANCE'
     headers = {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
     try:
         r = requests.get(url, headers=headers)
         data = r.json()
-        print(data)
+        return data
     except Exception as e:
         print(f'Exception occurred {e}')
 

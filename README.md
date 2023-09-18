@@ -87,6 +87,7 @@ Link to try the App : [Company-Explorer](https://company-explorer.streamlit.app/
 
 Distributed under the Apache License. See `LICENSE` for more information.
 
+
 ## References
 
 https://www.alphavantage.co/documentation/
@@ -94,6 +95,8 @@ https://www.alphavantage.co/documentation/
 https://docs.streamlit.io/knowledge-base/using-streamlit/how-do-i-run-my-streamlit-script
 
 https://python.langchain.com/docs/modules/agents/how_to/custom_agent
+
+https://docs.streamlit.io/streamlit-community-cloud/deploy-your-app/secrets-management
 
 
 

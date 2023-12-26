@@ -1,14 +1,21 @@
 import json
 from datetime import datetime
 
-import numpy as np
-import pandas as pd
 import requests
-from langchain.agents import AgentType, initialize_agent
+import streamlit as st
+from langchain.agents import AgentType, initialize_agent, AgentExecutor
+from langchain.agents.format_scratchpad import format_to_openai_function_messages
+from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
 from langchain.chat_models import ChatOpenAI
+from langchain.memory import ConversationBufferWindowMemory
+from langchain.prompts import ChatPromptTemplate
 from langchain.schema import SystemMessage, HumanMessage
 from langchain.tools import DuckDuckGoSearchRun
+from langchain_community.tools.render import format_tool_to_openai_function
+from langchain_core.prompts import MessagesPlaceholder
 
+from function import CompanyIncomeStatementTool, SearchTool, CompanyBalanceSheetTool, CompanyCashFlowTool, \
+    CompanyInformationTool, CompanyEarningsTool, SearchCompanyNewsTool
 from prompt_helper import get_company_name_prompt, get_income_statement_prompt, get_balance_sheet_prompt, \
     get_cash_flow_prompt, get_earnings_prompt
 
@@ -65,26 +72,22 @@ def get_ticker(company_name, api_key):
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
     r = requests.get(url, headers=headers)
     data = r.json()
+    print(data)
     distinct_comp_name = set()
     ticker_comp_name_dict = {}
     if matches := data.get('bestMatches'):
         for match in matches:
-            if match['2. name'] not in distinct_comp_name:
-                distinct_comp_name.add(match['2. name'])
+            if (match["4. region"] in ["United States", "India/Bombay"]
+                    and match['2. name'].replace('.', '').lower() not in distinct_comp_name):
+                distinct_comp_name.add(match['2. name'].replace('.', '').lower())
                 ticker_comp_name_dict[match['1. symbol']] = match['2. name']
         return ticker_comp_name_dict
-
-
-def get_news(ticker, api_key):
-    url = f'https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers={ticker}&apikey={api_key}&limit=10&sort=RELEVANCE'
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
-    try:
-        r = requests.get(url, headers=headers)
-        data = r.json()
-        return data
-    except Exception as e:
-        print(f'Exception occurred {e}')
+    if info := data.get('Information'):
+        if 'Our standard API rate limit' in info:
+            st.warning(
+                'Free access to Company Explorer allows for 25 daily requests. Kindly attempt again on the following day.')
+            st.stop()
+    return None
 
 
 def get_income_statement(ticker):
@@ -176,135 +179,6 @@ def is_earnings_query(user_query, api_key):
     return run(earnings_prompt, api_key)
 
 
-def get_income_statement_data(ticker, year):
-    print(f'{ticker} {year}')
-    income_statement = get_income_statement(ticker)
-    currentYear = datetime.now().year
-    data = {}
-    annual_report = []
-    quarterly_report = []
-    if income_statement:
-        for annual_rep in income_statement.get('annualReports'):
-            if year and year != 'None':
-                if str(year) in annual_rep.get('fiscalDateEnding') or str(year - 1) in annual_rep.get(
-                        'fiscalDateEnding'):
-                    annual_report.append({key: value for key, value in annual_rep.items()})
-            else:
-                annual_report.append({key: value for key, value in annual_rep.items()})
-        for quarterly_rep in income_statement.get('quarterlyReports'):
-            if year and year != 'None':
-                if str(year) in quarterly_rep.get('fiscalDateEnding') or str(year - 1) in quarterly_rep.get(
-                        'fiscalDateEnding'):
-                    quarterly_report.append({key: value for key, value in quarterly_rep.items()})
-            else:
-                if str(currentYear) in quarterly_rep.get('fiscalDateEnding') or str(
-                        currentYear - 1) in quarterly_rep.get('fiscalDateEnding'):
-                    quarterly_report.append({key: value for key, value in quarterly_rep.items()})
-
-        data['annualReports'] = annual_report
-        data['quarterlyReports'] = quarterly_report
-
-    return data
-
-
-def get_balance_sheet_data(ticker, year):
-    print(f'{ticker} {year}')
-    balance_sheet = get_balance_sheet(ticker)
-    currentYear = datetime.now().year
-    data = {}
-    annual_report = []
-    quarterly_report = []
-    if balance_sheet:
-        for annual_rep in balance_sheet.get('annualReports'):
-            print('Got Balance sheet data ')
-            if year and year != 'None':
-                if str(year) in annual_rep.get('fiscalDateEnding') or str(year - 1) in annual_rep.get(
-                        'fiscalDateEnding'):
-                    annual_report.append({key: value for key, value in annual_rep.items()})
-            else:
-                annual_report.append({key: value for key, value in annual_rep.items()})
-        for quarterly_rep in balance_sheet.get('quarterlyReports'):
-            if year and year != 'None':
-                if str(year) in quarterly_rep.get('fiscalDateEnding') or str(year - 1) in quarterly_rep.get(
-                        'fiscalDateEnding'):
-                    quarterly_report.append({key: value for key, value in quarterly_rep.items()})
-            else:
-                if str(currentYear) in quarterly_rep.get('fiscalDateEnding') or str(
-                        currentYear - 1) in quarterly_rep.get('fiscalDateEnding'):
-                    quarterly_report.append({key: value for key, value in quarterly_rep.items()})
-
-        data['annualReports'] = annual_report
-        data['quarterlyReports'] = quarterly_report
-
-    return data
-
-
-def get_cash_flow_data(ticker, year):
-    print(f'{ticker} {year}')
-    cash_flow = get_cash_flow(ticker)
-    # print(cash_flow)
-    currentYear = datetime.now().year
-    data = {}
-    annual_report = []
-    quarterly_report = []
-    if cash_flow:
-        for annual_rep in cash_flow.get('annualReports'):
-            if year and year != 'None':
-                if str(year) in annual_rep.get('fiscalDateEnding') or str(year - 1) in annual_rep.get(
-                        'fiscalDateEnding'):
-                    annual_report.append({key: value for key, value in annual_rep.items()})
-            else:
-                annual_report.append({key: value for key, value in annual_rep.items()})
-        for quarterly_rep in cash_flow.get('quarterlyReports'):
-            if year and year != 'None':
-                if str(year) in quarterly_rep.get('fiscalDateEnding') or str(year - 1) in quarterly_rep.get(
-                        'fiscalDateEnding'):
-                    quarterly_report.append({key: value for key, value in quarterly_rep.items()})
-            else:
-                if str(currentYear) in quarterly_rep.get('fiscalDateEnding') or str(
-                        currentYear - 1) in quarterly_rep.get('fiscalDateEnding'):
-                    quarterly_report.append({key: value for key, value in quarterly_rep.items()})
-
-        data['annualReports'] = annual_report
-        data['quarterlyReports'] = quarterly_report
-
-    return data
-
-
-def get_earnings_data(ticker, year):
-    print(f'{ticker} {year}')
-    earnings = get_earnings(ticker)
-    currentYear = datetime.now().year
-    data = {}
-    annual_report = []
-    quarterly_report = []
-    if earnings:
-        for annual_rep in earnings.get('annualEarnings'):
-            if year and year != 'None':
-                if str(year) in annual_rep.get('fiscalDateEnding') or str(year - 1) in annual_rep.get(
-                        'fiscalDateEnding'):
-                    annual_report.append({key: value for key, value in annual_rep.items()})
-            else:
-                if str(currentYear) in annual_rep.get('fiscalDateEnding') or str(
-                        currentYear - 1) in annual_rep.get('fiscalDateEnding') or str(
-                    currentYear - 2) in annual_rep.get('fiscalDateEnding'):
-                    annual_report.append({key: value for key, value in annual_rep.items()})
-        for quarterly_rep in earnings.get('quarterlyEarnings'):
-            if year and year != 'None':
-                if str(year) in quarterly_rep.get('fiscalDateEnding') or str(year - 1) in quarterly_rep.get(
-                        'fiscalDateEnding'):
-                    quarterly_report.append({key: value for key, value in quarterly_rep.items()})
-            else:
-                if str(currentYear) in quarterly_rep.get('fiscalDateEnding') or str(
-                        currentYear - 1) in quarterly_rep.get('fiscalDateEnding'):
-                    quarterly_report.append({key: value for key, value in quarterly_rep.items()})
-
-        data['annualReports'] = annual_report
-        data['quarterlyReports'] = quarterly_report
-
-    return data
-
-
 def get_data_as_string(data):
     temp_data = []
     for map in data:
@@ -315,97 +189,81 @@ def get_data_as_string(data):
     return ', '.join(temp_data)
 
 
-def extract_income_statement_data(data):
-    df = pd.DataFrame.from_records(data)
-    df = df.apply(pd.to_numeric, errors='ignore')
-    df = df.astype({'reportedCurrency': 'str'})
-    df["fiscalDateEnding"] = pd.to_datetime(df["fiscalDateEnding"], format="%Y-%m-%d")
-    df.rename(columns={'fiscalDateEnding': 'Fiscal-Date', 'reportedCurrency': 'Currency',
-                       'grossProfit': 'GrossProfit', 'totalRevenue': 'TotalRevenue',
-                       'costOfRevenue': 'CostOfRevenue',
-                       'costofGoodsAndServicesSold': 'CostofGoodsAndServicesSold',
-                       'operatingIncome': 'OperatingIncome',
-                       'sellingGeneralAndAdministrative': 'SellingGeneralAndAdministrative',
-                       'researchAndDevelopment': 'ResearchAndDevelopment',
-                       'operatingExpenses': 'OperatingExpenses',
-                       'investmentIncomeNet': 'InvestmentIncomeNet',
-                       'netInterestIncome': 'NetInterestIncome',
-                       'interestIncome': 'InterestIncome',
-                       'interestExpense': 'InterestExpense',
-                       'nonInterestIncome': 'NonInterestIncome',
-                       'otherNonOperatingIncome': 'OtherNonOperatingIncome',
-                       'depreciation': 'Depreciation',
-                       'depreciationAndAmortization': 'DepreciationAndAmortization',
-                       'incomeBeforeTax': 'IncomeBeforeTax',
-                       'incomeTaxExpense': 'IncomeTaxExpense',
-                       'interestAndDebtExpense': 'InterestAndDebtExpense',
-                       'netIncomeFromContinuingOperations': 'NetIncomeFromContinuingOperations',
-                       'comprehensiveIncomeNetOfTax': 'ComprehensiveIncomeNetOfTax',
-                       'ebit': 'Ebit',
-                       'ebitda': 'Ebitda', 'netIncome': 'NetIncome', }, inplace=True)
-    df = df.replace(to_replace='None', value=np.nan)
-    df.dropna(axis=1, inplace=True)
-    df.sort_values(by='Fiscal-Date', ascending=False)
-    return pd.pivot_table(data=df, index=['Currency', 'Fiscal-Date'], sort=False)
+def execute_user_query(query, api_key):
+    prompt = ChatPromptTemplate.from_messages([(
+        "system",
+        "Answer the user questions as an expert Business Analyst to the best of your ability."
+        " \n If year is present in user question then use that year else use current year {current_year}."
+    ), "{chat_history}",
+        ("human", "{question}"),
+        ("human",
+         """Tip: 1. Remember to speak as a passionate and an expert business analyst when giving your final answer."
+                 2. Provide the response backed by numbers wherever possible
+                 3. Provide the output in raw markdown javascript format.
+                 3. Don't mention as a passionate and expert business analyst in the response."""),
+        MessagesPlaceholder(variable_name="agent_scratchpad"), ])
+
+    tools = [CompanyIncomeStatementTool(),
+             CompanyBalanceSheetTool(),
+             CompanyCashFlowTool(),
+             CompanyEarningsTool(),
+             SearchTool(),
+             SearchCompanyNewsTool()]
+    memory = ConversationBufferWindowMemory(memory_key="chat_history", return_messages=True, input_key='question', k=3)
+    llm_with_tools = ChatOpenAI(temperature=0, model_name='gpt-3.5-turbo-0613', openai_api_key=api_key, max_retries=2,
+                                max_tokens=500).bind(functions=[format_tool_to_openai_function(t) for t in tools])
+    agent = (
+            {
+                "question": lambda x: x["question"],
+                "current_year": lambda x: x["current_year"],
+                "agent_scratchpad": lambda x: format_to_openai_function_messages(
+                    x["intermediate_steps"]
+                ),
+                "chat_history": lambda x: x["chat_history"],
+            }
+            | prompt
+            | llm_with_tools
+            | OpenAIFunctionsAgentOutputParser()
+    )
+    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True, max_iterations=3, memory=memory)
+    return agent_executor.invoke(
+        {"question": query, "current_year": datetime.now().year}
+    )
 
 
-def extract_balance_sheet_data(data):
-    df = pd.DataFrame.from_records(data)
-    df = df.apply(pd.to_numeric, errors='ignore')
-    df = df.astype({'reportedCurrency': 'str'})
-    df["fiscalDateEnding"] = pd.to_datetime(df["fiscalDateEnding"], format="%Y-%m-%d")
-    df.rename(columns={'fiscalDateEnding': 'Fiscal-Date', 'reportedCurrency': 'Currency',
-                       'totalAssets': 'TotalAssets', 'totalCurrentAssets': 'TotalCurrentAssets',
-                       'inventory': 'Inventory',
-                       'currentNetReceivables': 'CurrentNetReceivables',
-                       'totalLiabilities': 'TotalLiabilities',
-                       'totalCurrentLiabilities': 'TotalCurrentLiabilities',
-                       'currentAccountsPayable': 'CurrentAccountsPayable',
-                       'currentDebt': 'CurrentDebt',
-                       'shortTermDebt': 'ShortTermDebt',
-                       'longTermDebt': 'LongTermDebt',
-                       'totalShareholderEquity': 'TotalShareholderEquity',
-                       'shortLongTermDebtTotal': 'ShortLongTermDebtTotal',
-                       'commonStockSharesOutstanding': 'CommonStockSharesOutstanding'}, inplace=True)
-    df = df.replace(to_replace='None', value=np.nan)
-    df.dropna(axis=1, inplace=True)
-    df.sort_values(by='Fiscal-Date', ascending=False)
-    return pd.pivot_table(data=df, index=['Currency', 'Fiscal-Date'], sort=False)
+def get_company_information(query, open_api_key):
+    prompt = ChatPromptTemplate.from_messages([(
+        "system",
+        """Answer the user questions as an expert Business Analyst to the best of your ability.\n
+         Provide a brief summary of the company overview
+         \n If year is present in user question then use that year else use current year {current_year}."""
+    ),
+        ("human", "{question}"),
+        ("human",
+         """Tip: 1. Remember to speak as a passionate and an expert business analyst when giving your final answer."
+                 2. Provide the output in raw markdown javascript format.
+                 3. Don't mention as a passionate and expert business analyst in the response."""),
+        MessagesPlaceholder(variable_name="agent_scratchpad"), ])
 
-
-def extract_cash_flow_data(data):
-    df = pd.DataFrame.from_records(data)
-    df = df.apply(pd.to_numeric, errors='ignore')
-    df = df.astype({'reportedCurrency': 'str'})
-    df["fiscalDateEnding"] = pd.to_datetime(df["fiscalDateEnding"], format="%Y-%m-%d")
-    df.rename(columns={'fiscalDateEnding': 'Fiscal-Date', 'reportedCurrency': 'Currency',
-                       'operatingCashflow': 'OperatingCashflow', 'netIncome': 'NetIncome',
-                       'profitLoss': 'ProfitLoss',
-                       'paymentsForOperatingActivities': 'PaymentsForOperatingActivities',
-                       'proceedsFromOperatingActivities': 'ProceedsFromOperatingActivities',
-                       'changeInOperatingLiabilities': 'ChangeInOperatingLiabilities',
-                       'changeInOperatingAssets': 'ChangeInOperatingAssets',
-                       'depreciationDepletionAndAmortization': 'DepreciationDepletionAndAmortization',
-                       'capitalExpenditures': 'CapitalExpenditures',
-                       'changeInReceivables': 'ChangeInReceivables',
-                       'changeInInventory': 'ChangeInInventory',
-                       'cashflowFromInvestment': 'CashflowFromInvestment',
-                       'cashflowFromFinancing': 'CashflowFromFinancing',
-                       'dividendPayout': 'DividendPayout',
-                       'dividendPayoutCommonStock': 'DividendPayoutCommonStock',
-                       'dividendPayoutPreferredStock': 'DividendPayoutPreferredStock', }, inplace=True)
-    df = df.replace(to_replace='None', value=np.nan)
-    df.dropna(axis=1, inplace=True)
-    df.sort_values(by='Fiscal-Date', ascending=False)
-    return pd.pivot_table(data=df, index=['Currency', 'Fiscal-Date'], sort=False)
-
-
-def extract_earnings_data(data):
-    df = pd.DataFrame.from_records(data)
-    df = df.apply(pd.to_numeric, errors='ignore')
-    df["fiscalDateEnding"] = pd.to_datetime(df["fiscalDateEnding"], format="%Y-%m-%d")
-    df.rename(columns={'fiscalDateEnding': 'Fiscal-Date', 'reportedEPS': 'EPS'}, inplace=True)
-    df = df.replace(to_replace='None', value=np.nan)
-    df.dropna(axis=1, inplace=True)
-    df.sort_values(by='Fiscal-Date', ascending=False)
-    return pd.pivot_table(data=df, index=['Fiscal-Date'], sort=False)
+    tools = [CompanyInformationTool(),
+             SearchTool()]
+    llm_with_tools = ChatOpenAI(temperature=0, model_name='gpt-3.5-turbo-0613', openai_api_key=open_api_key,
+                                max_retries=2,
+                                max_tokens=200).bind(functions=[format_tool_to_openai_function(t) for t in tools])
+    agent = (
+            {
+                "question": lambda x: x["question"],
+                "current_year": lambda x: x["current_year"],
+                "agent_scratchpad": lambda x: format_to_openai_function_messages(
+                    x["intermediate_steps"]
+                ),
+            }
+            | prompt
+            | llm_with_tools
+            | OpenAIFunctionsAgentOutputParser()
+    )
+    print(f'Query {query}')
+    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+    return agent_executor.invoke(
+        {"question": query, "current_year": datetime.now().year}
+    )

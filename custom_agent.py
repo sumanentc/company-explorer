@@ -36,6 +36,22 @@ def search_earnings(input_text):
     return DuckDuckGoSearchRun().run(f"site:finance.yahoo.com Earnings of {input_text}")
 
 
+def search_income_statement(input_text):
+    return DuckDuckGoSearchRun().run(f"site:finance.yahoo.com income statement of {input_text}")
+
+
+def search_balance_sheet(input_text):
+    return DuckDuckGoSearchRun().run(f"site:finance.yahoo.com balance sheet of {input_text}")
+
+
+def search_cash_flow(input_text):
+    return DuckDuckGoSearchRun().run(f"site:finance.yahoo.com cash flow of {input_text}")
+
+
+def search_earnings(input_text):
+    return DuckDuckGoSearchRun().run(f"site:finance.yahoo.com Earnings of {input_text}")
+
+
 def get_annual_income_statement(input_text):
     data = get_income_statement()
     annual_documents = []
@@ -241,7 +257,7 @@ class CompanyOverviewSearchTool(BaseTool):
         """Use the tool."""
         import streamlit as st
         comp_ticker = st.session_state.selected_ticker
-        print(f'\n selected tick {comp_ticker}')
+        print(f'\n selected ticker {comp_ticker}')
         data = None
         name = st.session_state.company_name
         if comp_ticker:
@@ -471,23 +487,6 @@ def get_final_answer(openapi_key, query):
     except Exception as e:
         print(f'Exception occurred {e}')
         return "Sorry, couldn't process the request now. Try again after sometime"
-
-
-def get_company_information(user_query, open_api_key):
-    import streamlit as st
-    matched_token = st.session_state.matched_token
-    if matched_token:
-        import streamlit as st
-        name = st.session_state.company_name
-        user_query = re.sub(matched_token, name, user_query, flags=re.IGNORECASE)
-    tools = [CompanyOverviewSearchTool(),
-             Tool(name="Search the internet", func=search_general,
-                  description="useful for when you need to search some information that is missing or "
-                              "you are not able to understand", ), ]
-    llm = ChatOpenAI(temperature=0.1, model_name='gpt-3.5-turbo-0613', openai_api_key=open_api_key, max_retries=2, )
-    agent = initialize_agent(
-        tools, llm, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION, verbose=False, handle_parsing_errors=True)
-    return agent.run(user_query)
 
 
 def get_company_income(user_query, open_api_key):

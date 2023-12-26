@@ -4,13 +4,23 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-streamlit = "*"
+streamlit = ">=1.26.0"
 openai = "*"
-pandas = "*"
-numpy = "*"
-langchain = "*"
+pandas = ">=2.1.0"
+numpy = ">=1.25.2"
+langchain = ">=0.0.283"
 duckduckgo-search = "*"
 tiktoken = "*"
+yfinance = "*"
+requests = "*"
+lxml = "*"
+appdirs = "*"
+pytz = "*"
+frozendict = "*"
+beautifulsoup4 = "*"
+html5lib = "*"
+peewee = "*"
+requests-cache = "*"
 
 [dev-packages]
 

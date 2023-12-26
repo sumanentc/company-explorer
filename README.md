@@ -11,6 +11,7 @@ Some Key features Company Explorer include:
 * Providing information about income statements and balance sheets.
 * Translating financial jargon into an easily understandable format.
 * Enhancing understanding of a chosen company through an app.
+* Recent news about any company along with sentiment.
 
 Overall, the Company Explorer app aims to simplify the process of exploring the performance of any company.
 
@@ -97,6 +98,8 @@ https://docs.streamlit.io/knowledge-base/using-streamlit/how-do-i-run-my-streaml
 https://python.langchain.com/docs/modules/agents/how_to/custom_agent
 
 https://docs.streamlit.io/streamlit-community-cloud/deploy-your-app/secrets-management
+
+https://github.com/ranaroussi/yfinance
 
 
 
